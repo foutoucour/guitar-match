@@ -2,14 +2,14 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useRandomDuel } from "../useRandomDuel";
 
-// jsdom does not implement crypto.randomUUID — polyfill it
-Object.defineProperty(globalThis, "crypto", {
-  value: {
-    randomUUID: () => "test-uuid-1234",
-  },
-  configurable: true,
-});
+// jsdom may not implement crypto.randomUUID — polyfill it without overwriting an existing crypto object
+const existingCrypto = (globalThis as any).crypto as Crypto | undefined;
 
+if (!existingCrypto) {
+  (globalThis as any).crypto = { randomUUID: () => "test-uuid-1234" } as Crypto;
+} else if (typeof existingCrypto.randomUUID !== "function") {
+  (existingCrypto as any).randomUUID = () => "test-uuid-1234";
+}
 const mockGuitar1 = {
   id: "g1",
   brand: "Fender",
