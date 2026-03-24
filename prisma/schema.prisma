@@ -1,0 +1,13 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Stub model — will be replaced by T-002
+model Placeholder {
+  id Int @id @default(autoincrement())
+}
