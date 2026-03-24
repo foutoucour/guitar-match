@@ -1,0 +1,142 @@
+{
+  "project": "Guitar Match",
+  "branchName": "001-guitar-match-random-mode",
+  "userStories": [
+    {
+      "id": "T-001",
+      "title": "Project Scaffold",
+      "priority": 1,
+      "round": 1,
+      "passes": false,
+      "dependsOn": [],
+      "acceptanceCriteria": [
+        "next.js 14 App Router project initialised with TypeScript strict mode",
+        "Tailwind CSS configured with PostCSS",
+        "Prisma installed and initialised (prisma/ directory with schema.prisma stub)",
+        "docker-compose.yml starts a PostgreSQL 15 container on port 5432",
+        ".env.example documents DATABASE_URL and NEXT_PUBLIC_APP_URL",
+        "package.json scripts: dev, build, start, lint, db:migrate, db:seed",
+        "Folder structure: app/, components/, lib/, prisma/, types/",
+        "Project builds without errors (next build)"
+      ]
+    },
+    {
+      "id": "T-002",
+      "title": "Database Schema and Seed Data",
+      "priority": 2,
+      "round": 2,
+      "passes": false,
+      "dependsOn": ["T-001"],
+      "acceptanceCriteria": [
+        "Prisma schema defines Guitar model: id, brand, model, yearRange, category (enum: ELECTRIC|ACOUSTIC|BASS|OTHER), imageUrl, eloScore (default 1500), totalDuels (default 0), isActive (default true), createdAt",
+        "Prisma schema defines Duel model: id, guitar1Id, guitar2Id (FK Guitar), winnerId (nullable FK Guitar), category, sessionId, createdAt",
+        "Prisma schema defines Vote model: id, duelId (FK Duel), sessionId, reaction (nullable enum), createdAt",
+        "Unique constraint: one vote per (duelId, sessionId)",
+        "Migration runs cleanly: npx prisma migrate dev",
+        "Seed file (prisma/seed.ts) inserts 25+ guitar models: at least 10 electrics, 8 acoustics, 7 basses with realistic brand/model/yearRange/imageUrl data",
+        "ELO scores initialised to 1500 for all seed guitars",
+        "npx prisma db seed runs without errors"
+      ]
+    },
+    {
+      "id": "T-003",
+      "title": "ELO Calculation Utility",
+      "priority": 2,
+      "round": 2,
+      "passes": false,
+      "dependsOn": ["T-001"],
+      "acceptanceCriteria": [
+        "lib/elo.ts exports a pure function calculateElo(winnerElo: number, loserElo: number, kFactor?: number): { newWinnerElo: number; newLoserElo: number }",
+        "K-factor defaults to 32",
+        "Standard ELO formula: expected = 1 / (1 + 10^((opponent - player) / 400))",
+        "New ELO = old ELO + K * (actual - expected), where actual is 1 for winner, 0 for loser",
+        "ELO values are rounded to nearest integer",
+        "Unit tests cover: equal ELOs, strong favourite wins, upset (weaker wins), custom K-factor",
+        "All tests pass"
+      ]
+    },
+    {
+      "id": "T-004",
+      "title": "Random Duel API Route",
+      "priority": 3,
+      "round": 3,
+      "passes": false,
+      "dependsOn": ["T-002"],
+      "acceptanceCriteria": [
+        "GET /api/duels/random returns { duel: { id, guitar1, guitar2 } } with HTTP 200",
+        "Both guitars belong to the same category",
+        "Guitar objects include: id, brand, model, yearRange, category, imageUrl, eloScore, totalDuels",
+        "Accepts optional query param ?exclude=id1,id2,...,id10 to skip recently seen duel pairs (server ignores exact pair if both IDs appear together)",
+        "Accepts optional query param ?category=ELECTRIC|ACOUSTIC|BASS|OTHER to filter by category",
+        "Returns HTTP 503 with { error: 'insufficient_guitars' } if fewer than 2 active guitars exist in the requested category",
+        "A new Duel row is created in the database with the two guitar IDs and sessionId (from X-Session-Id header or generated)",
+        "Duel ID is included in the response so the client can reference it when voting",
+        "Unit tests: same category guarantee, exclusion logic, 503 on empty catalogue",
+        "All tests pass"
+      ]
+    },
+    {
+      "id": "T-005",
+      "title": "Vote API Route",
+      "priority": 3,
+      "round": 3,
+      "passes": false,
+      "dependsOn": ["T-002", "T-003"],
+      "acceptanceCriteria": [
+        "POST /api/votes accepts body { duelId: string, winnerId: string, sessionId: string, reaction?: string }",
+        "Returns HTTP 201 with { vote: { id }, guitar1: { id, eloScore }, guitar2: { id, eloScore } } showing updated ELO scores",
+        "Validates winnerId is one of the two guitar IDs in the duel; returns 400 if not",
+        "Updates both Guitar.eloScore and Guitar.totalDuels using calculateElo from lib/elo.ts",
+        "Sets Duel.winnerId on the referenced duel row",
+        "Creates a Vote row with duelId, sessionId, reaction",
+        "Enforces unique (duelId, sessionId) — returns HTTP 409 if already voted",
+        "All DB updates happen in a single Prisma transaction",
+        "Unit tests: happy path, duplicate vote 409, invalid winnerId 400",
+        "All tests pass"
+      ]
+    },
+    {
+      "id": "T-006",
+      "title": "GuitarCard Component",
+      "priority": 4,
+      "round": 4,
+      "passes": false,
+      "dependsOn": ["T-001"],
+      "acceptanceCriteria": [
+        "components/GuitarCard.tsx renders guitar photo (next/image, fill layout), brand, model, yearRange",
+        "Accepts props: guitar (Guitar type), isSelected (boolean), isWinner (boolean), showElo (boolean), onClick callback",
+        "When isSelected=true: highlighted border/ring style",
+        "When isWinner=true: trophy or checkmark badge visible",
+        "When showElo=true: ELO score displayed below model name",
+        "onClick fires only when not already selected (prevents double-vote)",
+        "Mobile-first: card is at minimum 140px wide, photo aspect ratio 4:3",
+        "Component is accessible: button role, aria-label includes brand and model",
+        "Storybook or snapshot test captures all visual states",
+        "No TypeScript errors"
+      ]
+    },
+    {
+      "id": "T-007",
+      "title": "Mode Random Page",
+      "priority": 4,
+      "round": 4,
+      "passes": false,
+      "dependsOn": ["T-004", "T-005", "T-006"],
+      "acceptanceCriteria": [
+        "app/random/page.tsx implements all five UI states: loading, ready, voted, reacting, error",
+        "loading state: skeleton cards or spinner while fetching duel",
+        "ready state: two GuitarCards side by side, no result visible",
+        "voted state: winner highlighted (isSelected + isWinner), both ELO scores shown, reaction picker visible, Suivant button visible",
+        "reacting state: one of the 5 reactions selected visually ('Choix impossible', 'Trop facile', 'Je connais pas les deux', 'Je possède une des deux', 'J\\'ai joué les deux')",
+        "error state: error message + Réessayer button that retries the fetch",
+        "Vote triggers optimistic update (UI transitions to voted state immediately, POST /api/votes sent in background)",
+        "Session history stored in sessionStorage key 'guitar-match-duel-history' as array of duel pair IDs (max 10 entries); passed as ?exclude= param to API",
+        "Suivant button prefetches next duel (calls GET /api/duels/random and preloads images) while user is in voted/reacting state",
+        "Clicking Suivant transitions immediately to ready state using prefetched data",
+        "sessionId generated once per browser session (crypto.randomUUID), stored in sessionStorage key 'guitar-match-session-id'",
+        "Mobile-first layout: cards stack vertically on screens < 640px, side by side on ≥ 640px",
+        "No TypeScript errors, no console errors in happy path"
+      ]
+    }
+  ]
+}
