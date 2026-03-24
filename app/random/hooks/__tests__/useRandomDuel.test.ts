@@ -108,11 +108,10 @@ describe("useRandomDuel", () => {
       // Now set up fetch so that the vote POST call resolves
       global.fetch = makeFetchOk(mockVoteResponse);
 
-      act(() => {
+      await act(async () => {
         result.current.vote("g1");
       });
 
-      // Optimistic update is synchronous — check before async resolution
       expect(result.current.phase).toBe("voted");
       expect(result.current.selectedId).toBe("g1");
     });
@@ -125,13 +124,13 @@ describe("useRandomDuel", () => {
 
       global.fetch = makeFetchOk(mockVoteResponse);
 
-      act(() => {
+      await act(async () => {
         result.current.vote("g1");
       });
 
       const firstSelectedId = result.current.selectedId;
 
-      act(() => {
+      await act(async () => {
         result.current.vote("g2");
       });
 
@@ -150,7 +149,7 @@ describe("useRandomDuel", () => {
 
       // Vote first so selectReaction can be called
       global.fetch = makeFetchOk(mockVoteResponse);
-      act(() => {
+      await act(async () => {
         result.current.vote("g1");
       });
 
@@ -187,10 +186,10 @@ describe("useRandomDuel", () => {
       await waitFor(() => expect(result.current.phase).toBe("ready"));
 
       // Vote to enable next()
-      act(() => {
+      await act(async () => {
         result.current.vote("g1");
       });
-      await waitFor(() => expect(result.current.phase).toBe("voted"));
+      expect(result.current.phase).toBe("voted");
 
       // next() — prefetchedRef is null because prefetch failed
       act(() => {
@@ -237,7 +236,7 @@ describe("useRandomDuel", () => {
 
       global.fetch = makeFetchOk(mockVoteResponse);
 
-      act(() => {
+      await act(async () => {
         result.current.vote("g1");
       });
 
