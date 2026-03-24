@@ -7,7 +7,60 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Stub model — will be replaced by T-002
-model Placeholder {
-  id Int @id @default(autoincrement())
+enum GuitarCategory {
+  ELECTRIC
+  ACOUSTIC
+  BASS
+  OTHER
+}
+
+enum ReactionType {
+  CHOIX_IMPOSSIBLE
+  TROP_FACILE
+  JE_CONNAIS_PAS
+  JE_POSSEDE_UNE
+  JAI_JOUE_LES_DEUX
+}
+
+model Guitar {
+  id         String         @id @default(cuid())
+  brand      String
+  model      String
+  yearRange  String
+  category   GuitarCategory
+  imageUrl   String
+  eloScore   Int            @default(1500)
+  totalDuels Int            @default(0)
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+
+  duelsAsGuitar1 Duel[] @relation("Guitar1")
+  duelsAsGuitar2 Duel[] @relation("Guitar2")
+  duelsWon       Duel[] @relation("Winner")
+}
+
+model Duel {
+  id        String         @id @default(cuid())
+  guitar1   Guitar         @relation("Guitar1", fields: [guitar1Id], references: [id])
+  guitar1Id String
+  guitar2   Guitar         @relation("Guitar2", fields: [guitar2Id], references: [id])
+  guitar2Id String
+  winner    Guitar?        @relation("Winner", fields: [winnerId], references: [id])
+  winnerId  String?
+  category  GuitarCategory
+  sessionId String
+  createdAt DateTime       @default(now())
+
+  votes Vote[]
+}
+
+model Vote {
+  id        String        @id @default(cuid())
+  duel      Duel          @relation(fields: [duelId], references: [id])
+  duelId    String
+  sessionId String
+  reaction  ReactionType?
+  createdAt DateTime      @default(now())
+
+  @@unique([duelId, sessionId])
 }
