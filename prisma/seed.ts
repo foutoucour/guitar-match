@@ -1,16 +1,9 @@
-import { PrismaClient, GuitarCategory } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { addGuitar, GuitarInput } from "../scripts/add-guitar";
 
 const prisma = new PrismaClient();
 
-interface GuitarSeed {
-  brand: string;
-  model: string;
-  yearRange: string;
-  category: GuitarCategory;
-  imageUrl: string;
-}
-
-const guitars: GuitarSeed[] = [
+const guitars: GuitarInput[] = [
   // --- ELECTRICS (12) ---
   {
     brand: "Fender",
@@ -211,30 +204,17 @@ async function main() {
   console.log("Seeding guitars...");
 
   for (const guitar of guitars) {
-    await prisma.guitar.upsert({
-      where: {
-        // upsert on brand+model combination using a compound unique index
-        // Since there is no compound unique, we use createMany with skipDuplicates
-        // fallback: use a deterministic approach
-        id: `seed-${guitar.brand}-${guitar.model}`
-          .toLowerCase()
-          .replace(/[^a-z0-9-]/g, "-"),
-      },
-      update: {},
-      create: {
-        id: `seed-${guitar.brand}-${guitar.model}`
-          .toLowerCase()
-          .replace(/[^a-z0-9-]/g, "-"),
-        brand: guitar.brand,
-        model: guitar.model,
-        yearRange: guitar.yearRange,
-        category: guitar.category,
-        imageUrl: guitar.imageUrl,
-        eloScore: 1500,
-        totalDuels: 0,
-        isActive: true,
-      },
+    const existing = await prisma.guitar.findFirst({
+      where: { brand: guitar.brand, model: guitar.model },
     });
+
+    if (existing) {
+      console.log(`Skipping ${guitar.brand} ${guitar.model} (already exists)`);
+      continue;
+    }
+
+    const created = await addGuitar(guitar, prisma);
+    console.log(`Added: ${created.brand} ${created.model}`);
   }
 
   const count = await prisma.guitar.count();
